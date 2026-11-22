@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NexusGaming — Digital Gaming Marketplace</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/responsive.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <span class="logo-mark">N</span>
+      NexusGaming
+    </a>
+    <form class="search-bar" id="searchForm">
+      <input type="text" placeholder="Search gift cards, games, keys..." />
+      <button type="submit">Search</button>
+    </form>
+    <nav class="nav-links">
+      <a href="/products.html">Shop</a>
+      <a href="/categories.html">Categories</a>
+      <a href="/orders.html">Orders</a>
+    </nav>
+    <div class="header-actions"></div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <h1>Level Up Your <span class="grad">Game Library</span></h1>
+      <p>Instant digital delivery for gift cards, game keys, wallet top-ups, and subscriptions. 100% authentic, always in stock.</p>
+      <div class="hero-cta">
+        <a href="/products.html" class="btn btn-primary">Shop Now →</a>
+        <a href="/categories.html" class="btn btn-outline">Browse Categories</a>
+      </div>
+    </div>
+    <div class="hero-art">🎮</div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2>Popular Categories</h2>
+      <a href="/categories.html">View all →</a>
+    </div>
+    <div class="category-grid" id="categoryGrid"></div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-head">
+      <h2>Featured Products</h2>
+      <a href="/products.html">Shop all →</a>
+    </div>
+    <div class="product-grid" id="featuredGrid"></div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-head">
+      <h2>New Arrivals</h2>
+      <a href="/products.html">View all →</a>
+    </div>
+    <div class="product-grid" id="newArrivals"></div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+      <p>Your trusted destination for digital gaming. Instant delivery. Secure checkout. 24/7 support.</p>
+    </div>
+    <div>
+      <h4>Shop</h4>
+      <ul>
+        <li><a href="/products.html">All Products</a></li>
+        <li><a href="/categories.html">Categories</a></li>
+        <li><a href="/products.html?featured=true">Featured</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Account</h4>
+      <ul>
+        <li><a href="/login.html">Sign In</a></li>
+        <li><a href="/register.html">Create Account</a></li>
+        <li><a href="/orders.html">Order History</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Support</h4>
+      <ul>
+        <li><a href="#">Help Center</a></li>
+        <li><a href="#">Contact Us</a></li>
+        <li><a href="#">Terms</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 NexusGaming. All rights reserved.</span>
+    <span>Made for gamers, by gamers.</span>
+  </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script>
+(async function () {
+  try {
+    const categories = await api('/api/categories');
+    const icons = { 'Game Gift Cards': '🎁', 'PlayStation Cards': '🎯', 'Xbox Cards': '🎮',
+      'Steam Wallet': '💳', 'Mobile Game Credits': '📱', 'PC Games': '💻',
+      'Gaming Subscriptions': '🎫', 'Digital Keys': '🔑' };
+    document.getElementById('categoryGrid').innerHTML = categories.slice(0, 8).map(c => `
+      <a class="category-card" href="/products.html?category=${c.slug}">
+        <div class="cat-icon">${icons[c.name] || '🎮'}</div>
+        <div class="cat-name">${c.name}</div>
+      </a>
+    `).join('');
+
+    const featured = await api('/api/products?featured=true&limit=8');
+    document.getElementById('featuredGrid').innerHTML = featured.items.map(productCardHTML).join('');
+
+    const all = await api('/api/products?limit=4');
+    document.getElementById('newArrivals').innerHTML = all.items.map(productCardHTML).join('');
+  } catch (e) {
+    toast('Failed to load homepage: ' + e.message, 'error');
+  }
+})();
+</script>
+</body>
+</html>

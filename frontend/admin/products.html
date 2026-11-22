@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Products</title>
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  .admin-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .admin-sidebar { background: var(--bg-2); padding: 24px; border-right: 1px solid var(--border); }
+  .admin-sidebar a { display: block; padding: 10px 14px; border-radius: 8px; color: var(--text-dim); margin-bottom: 4px; font-size: 14px; }
+  .admin-sidebar a:hover, .admin-sidebar a.active { background: var(--surface); color: var(--text); }
+  .admin-content { padding: 32px; }
+  .product-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+  .product-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .product-modal { position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.75); display:none; align-items:center; justify-content:center; padding:20px; }
+  .product-modal.open { display:flex; }
+  .product-modal-card { width:min(700px,100%); max-height:90vh; overflow:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; }
+  .product-thumb-small { width:64px;height:64px;object-fit:cover;border-radius:8px;background:var(--surface-2); }
+  @media (max-width:700px) { .product-form-grid { grid-template-columns:1fr; } .admin-layout { grid-template-columns:1fr; } .admin-sidebar { border-bottom:1px solid var(--border); } }
+</style>
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="/" class="logo" style="margin-bottom:24px;display:flex"><span class="logo-mark">N</span> Admin</a>
+    <a href="/admin/dashboard.html">📊 Dashboard</a>
+    <a href="/admin/products.html" class="active">📦 Products</a>
+    <a href="/admin/orders.html">🧾 Orders</a>
+    <a href="/admin/messages.html">💬 Messages</a>
+    <a href="/">← Back to Store</a>
+  </aside>
+  <main class="admin-content">
+    <div class="product-toolbar"><h1>Products</h1><button class="btn btn-primary" id="openAddProduct">+ Add Product</button></div>
+    <div id="content" style="margin-top:20px"><div class="empty">Loading...</div></div>
+  </main>
+</div>
+<div class="product-modal" id="productModal">
+  <div class="product-modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 id="productModalTitle">Add Product</h2>
+      <button type="button" class="btn btn-outline btn-sm" id="closeProductModal">Close</button>
+    </div>
+    <form id="productForm" enctype="multipart/form-data">
+      <input type="hidden" name="productId" />
+      <div class="product-form-grid">
+        <div class="form-group"><label>Product name</label><input name="name" required /></div>
+        <div class="form-group"><label>Category</label><select name="categoryId" id="categorySelect" required></select></div>
+        <div class="form-group"><label>Price</label><input name="price" type="number" min="0.01" step="0.01" required /></div>
+        <div class="form-group"><label>Compare price</label><input name="comparePrice" type="number" min="0" step="0.01" /></div>
+        <div class="form-group"><label>Stock</label><input name="stock" type="number" min="0" step="1" value="0" /></div>
+        <div class="form-group"><label>Platform</label><select name="platformId" id="platformSelect"><option value="">None</option></select></div>
+        <div class="form-group"><label>Region</label><select name="regionId" id="regionSelect"><option value="">None</option></select></div>
+        <div class="form-group"><label>Picture</label><input name="image" type="file" accept="image/jpeg,image/png,image/webp" /></div>
+        <div class="form-group"><label>Manual rating</label><select name="rating" required><option value="0">No rating</option><option value="1">★ 1 star</option><option value="2">★★ 2 stars</option><option value="3">★★★ 3 stars</option><option value="4">★★★★ 4 stars</option><option value="5">★★★★★ 5 stars</option></select></div>
+      </div>
+      <div class="form-group"><label>Description</label><textarea name="description" rows="5" required></textarea></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px"><input name="isFeatured" type="checkbox" /> Featured product</label>
+      <button class="btn btn-primary" type="submit">Save Product</button>
+    </form>
+  </div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+(async () => {
+  if (!(await requireAdminPage())) return;
+  try {
+    const [products, metadata] = await Promise.all([
+      api('/api/admin/products'),
+      api('/api/admin/metadata'),
+    ]);
+    window.productAdminCache = products;
+    document.getElementById('categorySelect').innerHTML = metadata.categories.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+    document.getElementById('platformSelect').insertAdjacentHTML('beforeend', metadata.platforms.map(p => `<option value="${p.id}">${escapeHTML(p.name)}</option>`).join(''));
+    document.getElementById('regionSelect').insertAdjacentHTML('beforeend', metadata.regions.map(r => `<option value="${r.id}">${escapeHTML(r.name)}</option>`).join(''));
+    document.getElementById('content').innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Picture</th><th>Name</th><th>Category</th><th>Platform</th><th>Rating</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${products.map(p => `
+            <tr>
+              <td>${p.imageUrl ? `<img class="product-thumb-small" src="${p.imageUrl}" alt="">` : '<span>—</span>'}</td>
+              <td><strong>${escapeHTML(p.name)}</strong></td>
+              <td>${escapeHTML(p.category.name)}</td>
+              <td>${escapeHTML(p.platform?.name || '—')}</td>
+              <td>${'★'.repeat(p.rating || 0)}${p.rating ? '' : '—'}</td>
+              <td>${formatMoney(p.price)}</td>
+              <td>${p.stock}</td>
+              <td><button class="btn btn-outline btn-sm" onclick="editProduct('${p.id}')">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">Delete</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    toast('Admin products loaded successfully');
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="empty">${e.message}</div>`;
+    toast(e.message, 'error');
+  }
+})();
+
+const productModal = document.getElementById('productModal');
+const productForm = document.getElementById('productForm');
+
+document.getElementById('openAddProduct').addEventListener('click', () => {
+  productForm.reset();
+  productForm.elements.productId.value = '';
+  document.getElementById('productModalTitle').textContent = 'Add Product';
+  productModal.classList.add('open');
+});
+
+document.getElementById('closeProductModal').addEventListener('click', () => {
+  productModal.classList.remove('open');
+});
+
+productModal.addEventListener('click', (e) => {
+  if (e.target === productModal) productModal.classList.remove('open');
+});
+
+window.editProduct = function (id) {
+  const product = window.productAdminCache.find(p => p.id === id);
+  if (!product) return;
+  productForm.reset();
+  productForm.elements.productId.value = product.id;
+  productForm.elements.name.value = product.name;
+  productForm.elements.description.value = product.description || '';
+  productForm.elements.price.value = product.price;
+  productForm.elements.comparePrice.value = product.comparePrice || '';
+  productForm.elements.stock.value = product.stock;
+  productForm.elements.categoryId.value = product.categoryId;
+  productForm.elements.platformId.value = product.platformId || '';
+  productForm.elements.regionId.value = product.regionId || '';
+  productForm.elements.rating.value = String(product.rating || 0);
+  productForm.elements.isFeatured.checked = !!product.isFeatured;
+  document.getElementById('productModalTitle').textContent = 'Edit Product';
+  productModal.classList.add('open');
+};
+
+productForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitButton = productForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  submitButton.textContent = productForm.elements.productId.value ? 'Saving...' : 'Adding...';
+  const formData = new FormData(productForm);
+  formData.set('isFeatured', productForm.elements.isFeatured.checked ? 'true' : 'false');
+  const id = formData.get('productId');
+  formData.delete('productId');
+
+  try {
+    if (id) {
+      await api(`/api/products/${id}`, { method: 'PUT', body: formData });
+      toast('Product updated');
+    } else {
+      await api('/api/products', { method: 'POST', body: formData });
+      toast('Product created');
+    }
+    productModal.classList.remove('open');
+    setTimeout(() => location.reload(), 300);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Save Product';
+  }
+});
+
+window.deleteProduct = async function (id) {
+  if (!confirm('Delete this product?')) return;
+  try {
+    await api(`/api/products/${id}`, { method: 'DELETE' });
+    toast('Product deleted');
+    setTimeout(() => location.reload(), 300);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+};
+</script>
+</body>
+</html>

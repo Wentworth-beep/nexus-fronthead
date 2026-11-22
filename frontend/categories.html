@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Categories — NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+    <form class="search-bar" id="searchForm"><input placeholder="Search..." /><button>Search</button></form>
+    <nav class="nav-links"><a href="/products.html">Shop</a></nav>
+    <div class="header-actions"></div>
+  </div>
+</header>
+<main class="container" style="padding-top:32px">
+  <h1>Browse Categories</h1>
+  <div class="category-grid" id="grid" style="margin-top:24px"></div>
+</main>
+<script src="/js/main.js"></script>
+<script>
+(async () => {
+  const cats = await api('/api/categories');
+  const icons = { 'Game Gift Cards': '🎁', 'PlayStation Cards': '🎯', 'Xbox Cards': '🎮',
+    'Steam Wallet': '💳', 'Mobile Game Credits': '📱', 'PC Games': '💻',
+    'Gaming Subscriptions': '🎫', 'Digital Keys': '🔑' };
+  document.getElementById('grid').innerHTML = cats.map(c => `
+    <a class="category-card" href="/products.html?category=${c.slug}">
+      <div class="cat-icon">${icons[c.name] || '🎮'}</div>
+      <div class="cat-name">${c.name}</div>
+    </a>
+  `).join('');
+})();
+</script>
+</body>
+</html>

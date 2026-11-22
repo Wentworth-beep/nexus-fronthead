@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin — NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  .admin-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .admin-sidebar { background: var(--bg-2); padding: 24px; border-right: 1px solid var(--border); }
+  .admin-sidebar a { display: block; padding: 10px 14px; border-radius: 8px; color: var(--text-dim); margin-bottom: 4px; font-size: 14px; }
+  .admin-sidebar a:hover, .admin-sidebar a.active { background: var(--surface); color: var(--text); }
+  .admin-content { padding: 32px; }
+  .coupon-grid { display: grid; grid-template-columns: minmax(280px, 420px) 1fr; gap: 20px; align-items:start; }
+  .coupon-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .coupon-row { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+  .coupon-actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .generated-code { color:var(--accent); font-size:18px; font-weight:800; letter-spacing:1px; }
+  @media (max-width: 900px) { .coupon-grid { grid-template-columns:1fr; } }
+  @media (max-width: 600px) { .coupon-row { grid-template-columns:1fr; } .admin-layout { grid-template-columns:1fr; } .admin-sidebar { border-right:0; border-bottom:1px solid var(--border); } }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: var(--radius); }
+  .stat-card .label { font-size: 13px; color: var(--text-dim); margin-bottom: 6px; }
+  .stat-card .value { font-size: 28px; font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="/" class="logo" style="margin-bottom:24px;display:flex"><span class="logo-mark">N</span> Admin</a>
+    <a href="/admin/dashboard.html" class="active">📊 Dashboard</a>
+    <a href="/admin/products.html">📦 Products</a>
+    <a href="/admin/orders.html">🧾 Orders</a>
+    <a href="/admin/messages.html">💬 Messages</a>
+    <a href="#" id="logoutAdmin">🚪 Logout</a>
+    <a href="/">← Back to Store</a>
+  </aside>
+  <main class="admin-content">
+    <h1>Dashboard</h1>
+    <div id="content"><div class="empty">Loading...</div></div>
+  </main>
+</div>
+<script src="/js/main.js"></script>
+<script>
+(async () => {
+  if (!(await requireAdminPage())) return;
+
+  try {
+    const [data, coupons] = await Promise.all([
+      api('/api/admin/dashboard'),
+      api('/api/coupons'),
+    ]);
+    document.getElementById('content').innerHTML = `
+      <div class="stat-grid" style="margin-top:24px">
+        <div class="stat-card"><div class="label">Total Users</div><div class="value">${data.stats.users}</div></div>
+        <div class="stat-card"><div class="label">Active Products</div><div class="value">${data.stats.products}</div></div>
+        <div class="stat-card"><div class="label">Total Orders</div><div class="value">${data.stats.orders}</div></div>
+        <div class="stat-card"><div class="label">Revenue</div><div class="value">${formatMoney(data.stats.revenue)}</div></div>
+      </div>
+      <h2 style="margin:16px 0">Coupon Generator</h2>
+      <div class="coupon-grid">
+        <div class="coupon-card">
+          <form id="couponForm">
+            <div class="form-group">
+              <label>Coupon code</label>
+              <div style="display:flex;gap:8px">
+                <input id="couponCode" name="code" required maxlength="40" placeholder="GIFT-ORDER-100" style="text-transform:uppercase" />
+                <button type="button" class="btn btn-outline" id="generateCode">Generate</button>
+              </div>
+            </div>
+            <div class="coupon-row">
+              <div class="form-group">
+                <label>Discount type</label>
+                <select name="type" required>
+                  <option value="PERCENT">Percentage</option>
+                  <option value="FIXED">Fixed amount</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Discount value</label>
+                <input name="value" type="number" min="0.01" step="0.01" required placeholder="10" />
+              </div>
+              <div class="form-group">
+                <label>Minimum spend (optional)</label>
+                <input name="minSpend" type="number" min="0" step="0.01" placeholder="0" />
+              </div>
+              <div class="form-group">
+                <label>Maximum uses (optional)</label>
+                <input name="maxUses" type="number" min="1" step="1" placeholder="1" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Expiry date (optional)</label>
+              <input name="expiresAt" type="datetime-local" />
+            </div>
+            <div class="coupon-actions">
+              <button class="btn btn-primary" type="submit">Create Coupon</button>
+            </div>
+          </form>
+          <div id="couponResult" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+            <span class="generated-code" id="createdCouponCode"></span>
+            <div class="form-group" style="margin-top:12px">
+              <label>Client email</label>
+              <input id="couponClientEmail" type="email" placeholder="client@example.com" value="${escapeHTML(data.recentOrders.find(o => o.status === 'PAID')?.user?.email || '')}" />
+            </div>
+            <div class="coupon-actions">
+              <button type="button" class="btn btn-outline" id="copyCoupon">Copy code</button>
+              <button type="button" class="btn btn-outline" id="emailCoupon">Send by email</button>
+            </div>
+          </div>
+        </div>
+        <div class="coupon-card" style="overflow-x:auto">
+          <table class="data-table" style="margin-top:0">
+            <thead><tr><th>Code</th><th>Discount</th><th>Uses</th><th>Status</th></tr></thead>
+            <tbody id="couponTable">
+              ${coupons.map(c => `
+                <tr>
+                  <td><strong>${escapeHTML(c.code)}</strong></td>
+                  <td>${c.type === 'PERCENT' ? `${c.value}%` : formatMoney(c.value)}</td>
+                  <td>${c.usedCount}${c.maxUses ? ` / ${c.maxUses}` : ''}</td>
+                  <td>${c.isActive ? 'Active' : 'Inactive'}${c.expiresAt && new Date(c.expiresAt) < new Date() ? ' (Expired)' : ''}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="4" class="empty">No coupons yet</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <h2 style="margin:16px 0">Recent Orders</h2>
+      <table class="data-table">
+        <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          ${data.recentOrders.map(o => `
+            <tr>
+              <td>${o.orderNumber}</td>
+              <td>${o.user.email}</td>
+              <td>${formatMoney(o.total)}</td>
+              <td><span class="badge-status ${o.status}">${o.status}</span></td>
+              <td>${new Date(o.createdAt).toLocaleDateString()}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    document.getElementById('generateCode').addEventListener('click', () => {
+      const random = Math.random().toString(36).slice(2, 8).toUpperCase();
+      document.getElementById('couponCode').value = `GAME-${random}`;
+    });
+
+    const couponForm = document.getElementById('couponForm');
+    couponForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = new FormData(couponForm);
+      const body = {
+        code: form.get('code').trim().toUpperCase(),
+        type: form.get('type'),
+        value: Number(form.get('value')),
+        minSpend: form.get('minSpend') ? Number(form.get('minSpend')) : null,
+        maxUses: form.get('maxUses') ? Number(form.get('maxUses')) : null,
+        expiresAt: form.get('expiresAt') || null,
+        isActive: true,
+      };
+      try {
+        const coupon = await api('/api/coupons', { method: 'POST', body });
+        document.getElementById('couponResult').style.display = 'block';
+        document.getElementById('createdCouponCode').textContent = coupon.code;
+        toast(`Coupon ${coupon.code} created`);
+
+        const row = document.createElement('tr');
+        row.innerHTML = `<td><strong>${escapeHTML(coupon.code)}</strong></td><td>${coupon.type === 'PERCENT' ? `${coupon.value}%` : formatMoney(coupon.value)}</td><td>0${coupon.maxUses ? ` / ${coupon.maxUses}` : ''}</td><td>Active</td>`;
+        document.getElementById('couponTable').prepend(row);
+        couponForm.reset();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    });
+
+    document.getElementById('copyCoupon').addEventListener('click', async () => {
+      const code = document.getElementById('createdCouponCode').textContent;
+      await navigator.clipboard.writeText(code);
+      toast('Coupon code copied');
+    });
+
+    document.getElementById('emailCoupon').addEventListener('click', () => {
+      const code = document.getElementById('createdCouponCode').textContent;
+      const email = document.getElementById('couponClientEmail').value.trim();
+      if (!email) {
+        toast('Enter the client email first', 'error');
+        document.getElementById('couponClientEmail').focus();
+        return;
+      }
+      const subject = encodeURIComponent(`Your ${code} coupon code`);
+      const body = encodeURIComponent(`Your payment is complete. Use coupon code ${code} on a future order.`);
+      location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+    });
+
+    document.getElementById('logoutAdmin').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await api('/api/auth/logout', { method: 'POST' });
+      location.href = '/admin/login.html';
+    });
+
+    toast('Admin dashboard loaded successfully');
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="empty"><h3>Access denied</h3><p>${e.message}</p><p><a href="/login.html">Sign in as admin</a></p></div>`;
+    toast(e.message, 'error');
+  }
+})();
+</script>
+</body>
+</html>

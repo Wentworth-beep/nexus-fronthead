@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login - NexusGaming</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body { display:grid; place-items:center; }
+    .admin-login-card { width:min(420px, calc(100% - 32px)); padding:32px; }
+    .admin-login-card h1 { text-align:center; margin-bottom:8px; }
+    .admin-login-card .subtitle { text-align:center; color:var(--text-dim); margin-bottom:24px; }
+  </style>
+</head>
+<body>
+  <main class="form-card admin-login-card">
+    <a href="/" class="logo" style="justify-content:center;margin-bottom:18px">
+      <span class="logo-mark">N</span> NexusGaming
+    </a>
+    <h1>Admin Login</h1>
+    <p class="subtitle">Authorized personnel only</p>
+    <div id="msg"></div>
+    <form id="adminLoginForm">
+      <div class="form-group">
+        <label for="adminEmail">Email</label>
+        <input id="adminEmail" type="email" name="email" value="admin@gmail.com" required autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="adminPassword">Password</label>
+        <input id="adminPassword" type="password" name="password" required autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">Sign in to Dashboard</button>
+    </form>
+  </main>
+
+  <script src="/js/main.js"></script>
+  <script>
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      const form = new FormData(e.currentTarget);
+      const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Logging in...';
+
+      try {
+        const data = await api('/api/auth/login', {
+          method: 'POST',
+          body: {
+            email: form.get('email'),
+            password: form.get('password'),
+          },
+        });
+
+        if (data.user.role !== 'ADMIN') {
+          throw new Error('This account does not have admin access');
+        }
+
+        msg.innerHTML = '<div class="form-msg success">Admin login successful. Redirecting...</div>';
+        toast('Admin login successful');
+        setTimeout(() => {
+          location.href = '/admin/dashboard.html';
+        }, 600);
+      } catch (err) {
+        msg.innerHTML = `<div class="form-msg error">${escapeHTML(err.message)}</div>`;
+        toast(err.message, 'error');
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Sign in to Dashboard';
+      }
+    });
+  </script>
+</body>
+</html>

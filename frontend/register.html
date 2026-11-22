@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create Account — NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+    <div class="header-actions"></div>
+  </div>
+</header>
+<div class="form-card">
+  <h2>Create Account</h2>
+  <div id="msg"></div>
+  <form id="regForm">
+    <div class="form-group"><label>First Name</label><input name="firstName" /></div>
+    <div class="form-group"><label>Last Name</label><input name="lastName" /></div>
+    <div class="form-group"><label>Email</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" minlength="6" required /></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" type="submit">Create Account</button>
+  </form>
+  <div class="form-switch">Already have an account? <a href="/login.html">Sign in</a></div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+document.getElementById('regForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  const form = new FormData(e.target);
+  try {
+    await api('/api/auth/register', {
+      method: 'POST',
+      body: Object.fromEntries(form.entries()),
+    });
+    msg.innerHTML = '<div class="form-msg success">Account created! Redirecting...</div>';
+    toast('Account created successfully!');
+    setTimeout(() => location.href = '/', 600);
+  } catch (err) {
+    msg.innerHTML = `<div class="form-msg error">${err.message}</div>`;
+    toast(err.message, 'error');
+  }
+});
+</script>
+</body>
+</html>

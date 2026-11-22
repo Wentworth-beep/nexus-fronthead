@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wishlist — NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+    <div class="header-actions"></div>
+  </div>
+</header>
+<main class="container" style="padding-top:32px" id="main"><div class="empty">Loading...</div></main>
+<script src="/js/main.js"></script>
+<script>
+(async () => {
+  try {
+    const wl = await api('/api/wishlist');
+    const main = document.getElementById('main');
+    if (wl.items.length === 0) {
+      main.innerHTML = `<h1>My Wishlist</h1><div class="empty"><h3>Your wishlist is empty</h3><p><a href="/products.html">Browse products →</a></p></div>`;
+      return;
+    }
+    main.innerHTML = `<h1>My Wishlist</h1><div class="product-grid" style="margin-top:24px">${wl.items.map(i => productCardHTML(i.product)).join('')}</div>`;
+  } catch (e) {
+    if (e.message.includes('Not authenticated')) { location.href = '/login.html'; return; }
+  }
+})();
+</script>
+</body>
+</html>

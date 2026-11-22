@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shop — NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="stylesheet" href="/css/responsive.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+    <form class="search-bar" id="searchForm">
+      <input type="text" placeholder="Search products..." />
+      <button type="submit">Search</button>
+    </form>
+    <nav class="nav-links">
+      <a href="/products.html">Shop</a>
+      <a href="/categories.html">Categories</a>
+      <a href="/orders.html">Orders</a>
+    </nav>
+    <div class="header-actions"></div>
+  </div>
+</header>
+
+<main class="container" style="padding-top:32px">
+  <h1 style="margin-bottom:20px">All Products</h1>
+  <div class="filters">
+    <select id="filterCategory"><option value="">All Categories</option></select>
+    <select id="filterPlatform"><option value="">All Platforms</option></select>
+    <select id="filterSort">
+      <option value="">Newest</option>
+      <option value="price_asc">Price: Low → High</option>
+      <option value="price_desc">Price: High → Low</option>
+      <option value="name">Name A–Z</option>
+    </select>
+  </div>
+  <div class="product-grid" id="productGrid"></div>
+</main>
+
+<footer class="site-footer"><div class="footer-bottom"><span>© 2025 NexusGaming</span><span>Secure shopping</span></div></footer>
+
+<script src="/js/main.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const state = {
+  q: params.get('q') || '',
+  category: params.get('category') || '',
+  platform: '',
+  sort: '',
+  page: 1,
+};
+
+async function loadFilters() {
+  try {
+    const categories = await api('/api/categories');
+    const catSel = document.getElementById('filterCategory');
+    categories.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.slug; o.textContent = c.name;
+      catSel.appendChild(o);
+    });
+    if (state.category) catSel.value = state.category;
+
+    const products = await api('/api/products?limit=100');
+    const platforms = [...new Set(products.items.map(p => p.platform?.name).filter(Boolean))];
+    const platSel = document.getElementById('filterPlatform');
+    platforms.forEach(p => {
+      const o = document.createElement('option'); o.value = p; o.textContent = p;
+      platSel.appendChild(o);
+    });
+  } catch {}
+}
+
+async function loadProducts() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = Array.from({ length: 6 }).map(() =>
+    `<div class="product-card"><div class="product-thumb skeleton"></div><div class="product-info"><div class="skeleton" style="height:14px;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:60%"></div></div></div>`
+  ).join('');
+
+  try {
+    const qs = new URLSearchParams();
+    if (state.q) qs.set('q', state.q);
+    if (state.category) qs.set('category', state.category);
+    if (state.platform) qs.set('platform', state.platform);
+    if (state.sort) qs.set('sort', state.sort);
+    qs.set('page', state.page);
+    qs.set('limit', 24);
+
+    const data = await api(`/api/products?${qs}`);
+    if (data.items.length === 0) {
+      grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>No products found</h3><p>Try adjusting your filters.</p></div>`;
+      return;
+    }
+    grid.innerHTML = data.items.map(productCardHTML).join('');
+  } catch (e) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Error</h3><p>${e.message}</p></div>`;
+  }
+}
+
+document.getElementById('filterCategory').addEventListener('change', (e) => {
+  state.category = e.target.value; state.page = 1; loadProducts();
+});
+document.getElementById('filterPlatform').addEventListener('change', (e) => {
+  state.platform = e.target.value; state.page = 1; loadProducts();
+});
+document.getElementById('filterSort').addEventListener('change', (e) => {
+  state.sort = e.target.value; state.page = 1; loadProducts();
+});
+
+(async () => {
+  await loadFilters();
+  await loadProducts();
+})();
+</script>
+</body>
+</html>

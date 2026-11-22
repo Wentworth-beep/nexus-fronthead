@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign In — NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+    <div class="header-actions"></div>
+  </div>
+</header>
+<div class="form-card">
+  <h2>Sign In</h2>
+  <div id="msg"></div>
+  <form id="loginForm">
+    <div class="form-group"><label>Email</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required /></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" type="submit">Sign In</button>
+  </form>
+  <div class="form-switch">No account? <a href="/register.html">Create one</a></div>
+</div>
+<script src="/js/main.js"></script>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  const form = new FormData(e.target);
+  const submitButton = e.target.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Logging in...';
+  try {
+    const data = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: form.get('email'), password: form.get('password') },
+    });
+    msg.innerHTML = '<div class="form-msg success">Signed in! Redirecting...</div>';
+    toast(data.user.role === 'ADMIN' ? 'Admin login successful!' : 'Login successful!');
+    setTimeout(() => location.href = data.user.role === 'ADMIN' ? '/admin/dashboard.html' : '/', 600);
+  } catch (err) {
+    msg.innerHTML = `<div class="form-msg error">${err.message}</div>`;
+    toast(err.message, 'error');
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Sign In';
+  }
+});
+</script>
+</body>
+</html>

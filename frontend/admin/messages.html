@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Messages - NexusGaming</title>
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  .admin-layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+  .admin-sidebar { background:var(--bg-2); padding:24px; border-right:1px solid var(--border); }
+  .admin-sidebar a { display:block; padding:10px 14px; border-radius:8px; color:var(--text-dim); margin-bottom:4px; font-size:14px; }
+  .admin-sidebar a.active { background:var(--surface); color:var(--text); }
+  .admin-content { padding:32px; }
+  .chat-layout { display:grid; grid-template-columns:260px 1fr; gap:16px; height:calc(100vh - 160px); min-height:520px; }
+  .chat-clients,.chat-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); }
+  .chat-clients { overflow:auto; }
+  .chat-client { width:100%; text-align:left; padding:14px; border-bottom:1px solid var(--border); color:var(--text); }
+  .chat-client.active { background:var(--surface-2); border-left:3px solid var(--primary); }
+  .chat-panel { display:grid; grid-template-rows:auto 1fr auto; overflow:hidden; }
+  .chat-head { padding:16px; border-bottom:1px solid var(--border); }
+  .chat-messages { padding:16px; overflow-y:auto; }
+  .chat-bubble { max-width:75%; margin-bottom:10px; padding:10px 12px; clear:both; }
+  .chat-bubble.client-message { margin-right:auto !important; border-radius:12px 12px 12px 4px; background:#334155 !important; color:#ffffff !important; border:1px solid #64748b; }
+  .chat-bubble.admin-message { margin-left:auto !important; border-radius:12px 12px 4px 12px; background:#0e7490 !important; color:#ffffff !important; border:1px solid #22d3ee; }
+  .chat-bubble.sent { margin-left:auto; }
+  .chat-bubble .chat-author { display:block; font-size:11px; font-weight:700; margin-bottom:3px; opacity:.85; }
+  .chat-bubble time { display:block; font-size:11px; opacity:.7; margin-top:4px; }
+  .chat-footer { border-top:1px solid var(--border); }
+  .chat-compose { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); }
+  .chat-compose input { flex:1; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); }
+  .chat-options { display:flex; gap:6px; flex-wrap:wrap; padding:8px 12px; border-top:1px solid var(--border); }
+  .chat-options button { font-size:12px; }
+  @media(max-width:800px){ .admin-layout{grid-template-columns:1fr}.chat-layout{grid-template-columns:1fr;height:auto}.chat-clients{max-height:180px}.chat-panel{min-height:480px} }
+</style>
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="/" class="logo" style="margin-bottom:24px;display:flex"><span class="logo-mark">N</span> Admin</a>
+    <a href="/admin/dashboard.html">📊 Dashboard</a>
+    <a href="/admin/products.html">📦 Products</a>
+    <a href="/admin/orders.html">🧾 Orders</a>
+    <a href="/admin/messages.html" class="active">💬 Messages</a>
+  </aside>
+  <main class="admin-content">
+    <h1>Customer Messages</h1>
+    <div class="chat-layout" style="margin-top:20px">
+      <div class="chat-clients" id="chatClients"><div class="empty">Loading...</div></div>
+      <section class="chat-panel">
+        <div class="chat-head" id="chatHead">Select a client</div>
+        <div class="chat-messages" id="chatMessages"><div class="empty">Choose a conversation</div></div>
+        <div class="chat-footer">
+          <div class="chat-options">
+            <button type="button" class="btn btn-outline btn-sm" data-admin-reply="Payment methods: Mobile Money, Bank Transfer, or PayPal. Send proof of payment after payment.">Payment access</button>
+            <button type="button" class="btn btn-outline btn-sm" data-admin-reply="Your order is being prepared. Please wait while we confirm payment.">Processing order</button>
+            <button type="button" class="btn btn-outline btn-sm" data-admin-reply="Please send the payment receipt or screenshot.">Request receipt</button>
+          </div>
+          <form class="chat-compose" id="chatForm">
+            <input id="chatInput" placeholder="Type payment instructions..." autocomplete="off" required />
+            <button class="btn btn-primary" type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="/js/main.js?v=chat-v3"></script>
+<script>
+(async () => {
+  if (!(await requireAdminPage())) return;
+  let messages = [];
+  let selectedUserId = new URLSearchParams(location.search).get('userId');
+  let selectedOrderId = new URLSearchParams(location.search).get('orderId');
+  let selectedEmail = new URLSearchParams(location.search).get('email');
+  const clients = new Map();
+  let adminOrders = [];
+
+  try {
+    [messages, adminOrders] = await Promise.all([
+      api('/api/messages'),
+      api('/api/admin/orders'),
+    ]);
+    const users = await api('/api/admin/users');
+    users.filter(u => u.role === 'CUSTOMER').forEach(u => clients.set(u.id, u));
+    messages.forEach(m => {
+      if (m.sender.role.name !== 'ADMIN') clients.set(m.sender.id, m.sender);
+      if (m.recipient.role.name !== 'ADMIN') clients.set(m.recipient.id, m.recipient);
+    });
+    if (!selectedUserId && clients.size) selectedUserId = [...clients.keys()][0];
+    renderClients();
+    renderConversation();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+
+  function renderClients() {
+    document.getElementById('chatClients').innerHTML = [...clients.entries()].map(([id, user]) => `
+      <div class="chat-client ${id === selectedUserId ? 'active' : ''}">
+        <button type="button" onclick="selectClient('${id}','${escapeHTML(user.email)}')" style="width:100%;text-align:left;color:inherit">
+          <strong>${escapeHTML(user.firstName || user.email)}</strong>
+          <div style="font-size:12px;color:var(--text-dim)">${escapeHTML(user.email)}</div>
+        </button>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button type="button" class="btn btn-outline btn-sm" onclick="banClient('${id}', ${user.isActive !== false})">${user.isActive === false ? 'Unban' : 'Ban'}</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="deleteClient('${id}')">Delete</button>
+        </div>
+      </div>
+    `).join('') || '<div class="empty">No client conversations yet</div>';
+  }
+
+  window.selectClient = function(id, email) {
+    selectedUserId = id;
+    selectedEmail = email;
+    renderClients();
+    renderConversation();
+  };
+
+  window.banClient = async function(id, currentlyActive) {
+    const action = currentlyActive ? 'ban' : 'unban';
+    if (!confirm(`${action === 'ban' ? 'Ban' : 'Unban'} this client account?`)) return;
+    try {
+      await api(`/api/admin/users/${id}`, { method:'PATCH', body:{ isActive: !currentlyActive } });
+      const client = clients.get(id);
+      if (client) client.isActive = !currentlyActive;
+      renderClients();
+      toast(`Client ${action}ned`);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  window.deleteClient = async function(id) {
+    if (!confirm('Delete this client account and all of its data?')) return;
+    try {
+      await api(`/api/admin/users/${id}`, { method:'DELETE' });
+      clients.delete(id);
+      messages = messages.filter(m => m.senderId !== id && m.recipientId !== id);
+      if (selectedUserId === id) selectedUserId = [...clients.keys()][0] || null;
+      renderClients();
+      renderConversation();
+      toast('Client account deleted');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+
+  function renderConversation() {
+    if (!selectedUserId) return;
+    const client = clients.get(selectedUserId);
+    const selectedOrder = selectedOrderId ? adminOrders.find(o => o.id === selectedOrderId) : null;
+    document.getElementById('chatHead').innerHTML = `
+      <strong>${escapeHTML(selectedEmail || client?.email || 'Client')}</strong>
+      ${selectedOrder ? `
+        <div style="font-size:13px;color:var(--text-dim);margin-top:6px">
+          Order ${escapeHTML(selectedOrder.orderNumber)} · ${escapeHTML(selectedOrder.items.map(i => `${i.quantity}× ${i.product?.name || 'Item'}`).join(', '))}
+          · Amount ${formatMoney(selectedOrder.total)}
+        </div>
+      ` : ''}
+    `;
+    const thread = messages.filter(m =>
+      (m.senderId === selectedUserId || m.recipientId === selectedUserId)
+    );
+    document.getElementById('chatMessages').innerHTML = thread.length ? thread.map(m => `
+      <div class="chat-bubble ${m.sender.role.name === 'ADMIN' ? 'admin-message sent' : 'client-message'}">
+        <span class="chat-author">${m.sender.role.name === 'ADMIN' ? 'You (Admin)' : 'Client'}</span>
+        ${escapeHTML(m.body)}
+        <time>${new Date(m.createdAt).toLocaleString()}</time>
+      </div>
+    `).join('') : '<div class="empty">No messages in this conversation</div>';
+  }
+
+  document.getElementById('chatForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!selectedUserId) return toast('Select a client first', 'error');
+    const input = document.getElementById('chatInput');
+    const sendButton = e.currentTarget.querySelector('button[type="submit"]');
+    sendButton.disabled = true;
+    sendButton.textContent = 'Sending...';
+    try {
+      const message = await api('/api/messages', { method:'POST', body:{
+        recipientId:selectedUserId,
+        orderId:selectedOrderId,
+        body:input.value,
+      }});
+      messages.push(message);
+      input.value = '';
+      renderConversation();
+      toast('Message sent', 'success', false);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      sendButton.disabled = false;
+      sendButton.textContent = 'Send';
+    }
+  });
+
+  document.querySelector('.chat-options').addEventListener('click', (e) => {
+    const option = e.target.closest('[data-admin-reply]');
+    if (!option) return;
+    const input = document.getElementById('chatInput');
+    input.value = option.dataset.adminReply;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  setInterval(async () => {
+    if (!selectedUserId) return;
+    try {
+      const latest = await api('/api/messages');
+      if (JSON.stringify(latest) !== JSON.stringify(messages)) {
+        messages = latest;
+        renderConversation();
+      }
+    } catch {}
+  }, 5000);
+})();
+</script>
+</body>
+</html>

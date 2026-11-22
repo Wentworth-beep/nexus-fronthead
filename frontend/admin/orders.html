@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Orders</title>
+<link rel="stylesheet" href="/css/style.css" />
+<style>
+  .admin-layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .admin-sidebar { background: var(--bg-2); padding: 24px; border-right: 1px solid var(--border); }
+  .admin-sidebar a { display: block; padding: 10px 14px; border-radius: 8px; color: var(--text-dim); margin-bottom: 4px; font-size: 14px; }
+  .admin-sidebar a.active { background: var(--surface); color: var(--text); }
+  .admin-content { padding: 32px; }
+  .order-actions { display:flex; gap:6px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <a href="/" class="logo" style="margin-bottom:24px;display:flex"><span class="logo-mark">N</span> Admin</a>
+    <a href="/admin/dashboard.html">📊 Dashboard</a>
+    <a href="/admin/products.html">📦 Products</a>
+    <a href="/admin/orders.html" class="active">🧾 Orders</a>
+    <a href="/admin/messages.html">💬 Messages</a>
+    <a href="/">← Back to Store</a>
+  </aside>
+  <main class="admin-content">
+    <h1>Orders</h1>
+    <div id="content" style="margin-top:20px"><div class="empty">Loading...</div></div>
+  </main>
+</div>
+<script src="/js/main.js"></script>
+<script>
+(async () => {
+  if (!(await requireAdminPage())) return;
+  try {
+    const orders = await api('/api/admin/orders');
+    document.getElementById('content').innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Order</th><th>Customer</th><th>Selected Items</th><th>Amount</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${orders.map(o => `
+            <tr>
+              <td>${o.orderNumber}</td>
+              <td>${o.user.email}</td>
+              <td>
+                ${o.items.length ? o.items.map(i => `
+                  <div style="margin-bottom:6px">
+                    <strong>${escapeHTML(i.product?.name || 'Product')}</strong>
+                    <div style="color:var(--text-dim);font-size:12px">
+                      Quantity: ${i.quantity} · Unit: ${formatMoney(i.unitPrice)} · Line total: ${formatMoney(Number(i.unitPrice) * i.quantity)}
+                    </div>
+                  </div>
+                `).join('') : '—'}
+              </td>
+              <td>
+                <strong>${formatMoney(o.total)}</strong>
+                <div style="color:var(--text-dim);font-size:12px">Subtotal: ${formatMoney(o.subtotal)}</div>
+                ${Number(o.discount) > 0 ? `<div style="color:var(--success);font-size:12px">Discount: -${formatMoney(o.discount)}</div>` : ''}
+              </td>
+              <td>
+                <select onchange="updateOrderStatus('${o.id}', this.value)" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:6px;border-radius:6px">
+                  ${['PENDING','PAID','COMPLETED','FAILED','CANCELLED'].map(status => `<option value="${status}" ${o.status === status ? 'selected' : ''}>${status}</option>`).join('')}
+                </select>
+              </td>
+              <td>${new Date(o.createdAt).toLocaleString()}</td>
+              <td class="order-actions">
+                <button class="btn btn-outline btn-sm" onclick="openCustomerChat('${o.userId}', '${o.user.email}', '${o.id}')">Chat</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteOrder('${o.id}')">Delete</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    toast('Admin orders loaded successfully');
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="empty">${e.message}</div>`;
+    toast(e.message, 'error');
+  }
+})();
+
+async function updateOrderStatus(id, status) {
+  try {
+    await api(`/api/admin/orders/${id}`, { method: 'PATCH', body: { status } });
+    toast(`Order status changed to ${status}`);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+async function deleteOrder(id) {
+  if (!confirm('Permanently delete this order?')) return;
+  try {
+    await api(`/api/admin/orders/${id}`, { method: 'DELETE' });
+    toast('Order deleted');
+    setTimeout(() => location.reload(), 300);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function openCustomerChat(userId, email, orderId) {
+  location.href = `/admin/messages.html?userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}&orderId=${encodeURIComponent(orderId)}`;
+}
+</script>
+</body>
+</html>
