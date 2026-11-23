@@ -1,8 +1,8 @@
-const API = 'https://nexus-backend-qaj2.onrender.com';
+const API_BASE_URL = 'https://nexus-backend-qaj2.onrender.com';
 
 async function api(path, options = {}) {
   const isFormData = options.body instanceof FormData;
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     headers: isFormData ? (options.headers || {}) : { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
