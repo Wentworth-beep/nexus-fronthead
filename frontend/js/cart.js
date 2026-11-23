@@ -7,7 +7,7 @@ async function loadCart() {
   layout.innerHTML = `<div class="empty">Loading…</div>`;
 
   try {
-    const { cart, subtotal } = await API.get('/api/cart');
+    const { cart, subtotal } = await api('/api/cart'); // Changed to lowercase api
 
     if (!cart.items.length) {
       layout.innerHTML = `
@@ -68,14 +68,14 @@ async function loadCart() {
 
 async function updateQty(id, qty) {
   try {
-    await API.put(`/api/cart/${id}`, { quantity: Number(qty) });
+    await api(`/api/cart/${id}`, { method: 'PUT', body: { quantity: Number(qty) } }); // Changed
     loadCart(); updateCartBadge();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function removeItem(id) {
   try {
-    await API.del(`/api/cart/${id}`);
+    await api(`/api/cart/${id}`, { method: 'DELETE' }); // Changed
     loadCart(); updateCartBadge();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -84,7 +84,7 @@ async function applyCoupon(subtotal) {
   const code = document.getElementById('couponInput').value.trim();
   if (!code) return;
   try {
-    const data = await API.post('/api/coupons/validate', { code, subtotal });
+    const data = await api('/api/coupons/validate', { method: 'POST', body: { code, subtotal } }); // Changed
     currentCoupon = { code, discount: data.discount };
     toast('Coupon applied!');
     loadCart();
@@ -98,14 +98,21 @@ async function checkout() {
     button.textContent = 'Processing order...';
   }
   try {
-    const order = await API.post('/api/orders', {
-      couponCode: currentCoupon?.code || null,
+    const order = await api('/api/orders', {
+      method: 'POST',
+      body: { couponCode: currentCoupon?.code || null }, // Changed
     });
+    
     if (button) button.textContent = 'Opening payment chat...';
-    await API.post('/api/messages', {
-      orderId: order.id,
-      body: `I placed order ${order.orderNumber}. Please tell me the available payment methods for the $${Number(order.total).toFixed(2)} amount.`,
+    
+    await api('/api/messages', {
+      method: 'POST',
+      body: {
+        orderId: order.id,
+        body: `I placed order ${order.orderNumber}. Please tell me the available payment methods for the $${Number(order.total).toFixed(2)} amount.`,
+      }, // Changed
     });
+    
     location.href = `/checkout.html?orderId=${encodeURIComponent(order.id)}`;
   } catch (e) {
     toast(e.message, 'error');
