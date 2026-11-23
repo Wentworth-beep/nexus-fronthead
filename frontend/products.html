@@ -3,16 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Shop — NexusGaming</title>
+<title>NexusGaming — Digital Gaming Marketplace</title>
 <link rel="stylesheet" href="/css/style.css" />
 <link rel="stylesheet" href="/css/responsive.css" />
 </head>
 <body>
+
 <header class="site-header">
   <div class="header-inner">
-    <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+    <a href="/" class="logo">
+      <span class="logo-mark">N</span>
+      NexusGaming
+    </a>
     <form class="search-bar" id="searchForm">
-      <input type="text" placeholder="Search products..." />
+      <input type="text" placeholder="Search gift cards, games, keys..." />
       <button type="submit">Search</button>
     </form>
     <nav class="nav-links">
@@ -24,94 +28,111 @@
   </div>
 </header>
 
-<main class="container" style="padding-top:32px">
-  <h1 style="margin-bottom:20px">All Products</h1>
-  <div class="filters">
-    <select id="filterCategory"><option value="">All Categories</option></select>
-    <select id="filterPlatform"><option value="">All Platforms</option></select>
-    <select id="filterSort">
-      <option value="">Newest</option>
-      <option value="price_asc">Price: Low → High</option>
-      <option value="price_desc">Price: High → Low</option>
-      <option value="name">Name A–Z</option>
-    </select>
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <h1>Level Up Your <span class="grad">Game Library</span></h1>
+      <p>Instant digital delivery for gift cards, game keys, wallet top-ups, and subscriptions. 100% authentic, always in stock.</p>
+      <div class="hero-cta">
+        <a href="/products.html" class="btn btn-primary">Shop Now →</a>
+        <a href="/categories.html" class="btn btn-outline">Browse Categories</a>
+      </div>
+    </div>
+    <div class="hero-art">🎮</div>
   </div>
-  <div class="product-grid" id="productGrid"></div>
-</main>
+</section>
 
-<footer class="site-footer"><div class="footer-bottom"><span>© 2025 NexusGaming</span><span>Secure shopping</span></div></footer>
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <h2>Popular Categories</h2>
+      <a href="/categories.html">View all →</a>
+    </div>
+    <div class="category-grid" id="categoryGrid"></div>
+  </div>
+</section>
 
-<script src="/js/main.js?=v2"></script>
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-head">
+      <h2>Featured Products</h2>
+      <a href="/products.html">Shop all →</a>
+    </div>
+    <div class="product-grid" id="featuredGrid"></div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-head">
+      <h2>New Arrivals</h2>
+      <a href="/products.html">View all →</a>
+    </div>
+    <div class="product-grid" id="newArrivals"></div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="logo"><span class="logo-mark">N</span> NexusGaming</a>
+      <p>Your trusted destination for digital gaming. Instant delivery. Secure checkout. 24/7 support.</p>
+    </div>
+    <div>
+      <h4>Shop</h4>
+      <ul>
+        <li><a href="/products.html">All Products</a></li>
+        <li><a href="/categories.html">Categories</a></li>
+        <li><a href="/products.html?featured=true">Featured</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Account</h4>
+      <ul>
+        <li><a href="/login.html">Sign In</a></li>
+        <li><a href="/register.html">Create Account</a></li>
+        <li><a href="/orders.html">Order History</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Support</h4>
+      <ul>
+        <li><a href="#">Help Center</a></li>
+        <li><a href="#">Contact Us</a></li>
+        <li><a href="#">Terms</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 NexusGaming. All rights reserved.</span>
+    <span>Made for gamers, by gamers.</span>
+  </div>
+</footer>
+
+<!-- CRITICAL FIX: ?v=2 forces the browser to bypass the cache and load the correct main.js -->
+<script src="/js/main.js?v=2"></script>
 <script>
-const params = new URLSearchParams(location.search);
-const state = {
-  q: params.get('q') || '',
-  category: params.get('category') || '',
-  platform: '',
-  sort: '',
-  page: 1,
-};
-
-async function loadFilters() {
+(async function () {
   try {
     const categories = await api('/api/categories');
-    const catSel = document.getElementById('filterCategory');
-    categories.forEach(c => {
-      const o = document.createElement('option');
-      o.value = c.slug; o.textContent = c.name;
-      catSel.appendChild(o);
-    });
-    if (state.category) catSel.value = state.category;
+    const icons = { 'Game Gift Cards': '🎁', 'PlayStation Cards': '🎯', 'Xbox Cards': '🎮',
+      'Steam Wallet': '💳', 'Mobile Game Credits': '📱', 'PC Games': '💻',
+      'Gaming Subscriptions': '🎫', 'Digital Keys': '🔑' };
+    document.getElementById('categoryGrid').innerHTML = categories.slice(0, 8).map(c => `
+      <a class="category-card" href="/products.html?category=${c.slug}">
+        <div class="cat-icon">${icons[c.name] || '🎮'}</div>
+        <div class="cat-name">${c.name}</div>
+      </a>
+    `).join('');
 
-    const products = await api('/api/products?limit=100');
-    const platforms = [...new Set(products.items.map(p => p.platform?.name).filter(Boolean))];
-    const platSel = document.getElementById('filterPlatform');
-    platforms.forEach(p => {
-      const o = document.createElement('option'); o.value = p; o.textContent = p;
-      platSel.appendChild(o);
-    });
-  } catch {}
-}
+    const featured = await api('/api/products?featured=true&limit=8');
+    document.getElementById('featuredGrid').innerHTML = featured.items.map(productCardHTML).join('');
 
-async function loadProducts() {
-  const grid = document.getElementById('productGrid');
-  grid.innerHTML = Array.from({ length: 6 }).map(() =>
-    `<div class="product-card"><div class="product-thumb skeleton"></div><div class="product-info"><div class="skeleton" style="height:14px;margin-bottom:8px"></div><div class="skeleton" style="height:12px;width:60%"></div></div></div>`
-  ).join('');
-
-  try {
-    const qs = new URLSearchParams();
-    if (state.q) qs.set('q', state.q);
-    if (state.category) qs.set('category', state.category);
-    if (state.platform) qs.set('platform', state.platform);
-    if (state.sort) qs.set('sort', state.sort);
-    qs.set('page', state.page);
-    qs.set('limit', 24);
-
-    const data = await api(`/api/products?${qs}`);
-    if (data.items.length === 0) {
-      grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>No products found</h3><p>Try adjusting your filters.</p></div>`;
-      return;
-    }
-    grid.innerHTML = data.items.map(productCardHTML).join('');
+    const all = await api('/api/products?limit=4');
+    document.getElementById('newArrivals').innerHTML = all.items.map(productCardHTML).join('');
   } catch (e) {
-    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><h3>Error</h3><p>${e.message}</p></div>`;
+    toast('Failed to load homepage: ' + e.message, 'error');
   }
-}
-
-document.getElementById('filterCategory').addEventListener('change', (e) => {
-  state.category = e.target.value; state.page = 1; loadProducts();
-});
-document.getElementById('filterPlatform').addEventListener('change', (e) => {
-  state.platform = e.target.value; state.page = 1; loadProducts();
-});
-document.getElementById('filterSort').addEventListener('change', (e) => {
-  state.sort = e.target.value; state.page = 1; loadProducts();
-});
-
-(async () => {
-  await loadFilters();
-  await loadProducts();
 })();
 </script>
 </body>
