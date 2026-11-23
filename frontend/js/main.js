@@ -187,7 +187,9 @@ function productCardHTML(p) {
     <div class="product-card">
       <a href="/product-details.html?id=${p.id}" class="product-thumb">
         ${hasSale ? `<span class="sale-tag">-${discount}%</span>` : ''}
-        ${p.imageUrl ? `<img src="${p.imageUrl}" alt="${escapeHTML(p.name)}" style="width:100%;height:100%;object-fit:cover" />` : icon}
+        ${p.imageUrl
+          ? `<img src="${p.imageUrl}" alt="${escapeHTML(p.name)}" onerror="this.style.display='none';this.parentElement.append('${icon}') " style="width:100%;height:100%;object-fit:cover" />`
+          : icon}
       </a>
       <div class="product-info">
         <a href="/product-details.html?id=${p.id}" class="product-title">${p.name}</a>

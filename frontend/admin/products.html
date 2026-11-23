@@ -78,7 +78,9 @@
         <tbody>
           ${products.map(p => `
             <tr>
-              <td>${p.imageUrl ? `<img class="product-thumb-small" src="${p.imageUrl}" alt="">` : '<span>—</span>'}</td>
+              <td>${p.imageUrl
+                ? `<img class="product-thumb-small" src="${p.imageUrl}" alt="" onerror="this.style.display='none';this.parentElement.textContent='—'">`
+                : '<span>—</span>'}</td>
               <td><strong>${escapeHTML(p.name)}</strong></td>
               <td>${escapeHTML(p.category.name)}</td>
               <td>${escapeHTML(p.platform?.name || '—')}</td>
