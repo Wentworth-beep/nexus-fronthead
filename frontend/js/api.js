@@ -1,6 +1,9 @@
 // LAYER: Frontend API client — single fetch wrapper
 // Nothing else in frontend/ may call fetch() directly.
 
+// 1. Point this to your live Render URL!
+const API_BASE = 'https://nexus-backend-qaj2.onrender.com'; 
+
 window.API = {
   async request(path, { method = 'GET', body, headers = {} } = {}) {
     const isFormData = body instanceof FormData;
@@ -15,7 +18,8 @@ window.API = {
       opts.body = typeof body === 'string' ? body : JSON.stringify(body);
     }
 
-    const res = await fetch(path, opts);
+    // 2. Prepend API_BASE to the path so it reaches Render
+    const res = await fetch(`${API_BASE}${path}`, opts);
     let data = {};
     try { data = await res.json(); } catch { /* non-JSON body */ }
 
