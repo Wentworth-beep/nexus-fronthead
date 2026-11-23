@@ -1,4 +1,4 @@
-const API = '';
+const API = 'https://nexus-backend-qaj2.onrender.com';
 
 async function api(path, options = {}) {
   const isFormData = options.body instanceof FormData;
