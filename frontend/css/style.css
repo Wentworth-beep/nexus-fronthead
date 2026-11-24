@@ -284,6 +284,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .toast.success { border-left: 3px solid var(--success); }
 .toast.error { border-left: 3px solid var(--danger); }
 .notification-wrap { position: relative; }
+.admin-notification-wrap { position: fixed; top: 24px; right: 24px; z-index: 998; }
+.admin-notification-wrap .notification-panel { top: 48px; }
 .notification-panel {
   position: absolute; right: 0; top: 48px; width: 340px;
   background: var(--surface); border: 1px solid var(--border);

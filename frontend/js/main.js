@@ -36,12 +36,58 @@ function toast(message, type = 'success', notify = true) {
   setTimeout(() => el.remove(), 3500);
 }
 
-function getNotifications() {
+function isAdminPage() {
+  return location.pathname === '/admin.html' || location.pathname.startsWith('/admin/');
+}
+
+function notificationStorageKey() {
+  return isAdminPage() ? 'nexus_admin_notifications' : 'nexus_notifications';
+}
+
+function readNotificationList(key) {
   try {
-    return JSON.parse(localStorage.getItem('nexus_notifications') || '[]');
+    const notifications = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(notifications) ? notifications : [];
   } catch {
     return [];
   }
+}
+
+function isLegacyAdminNotification(item) {
+  const message = String(item.message || '');
+  return /^(?:Product (?:deleted|removed from the catalog|created|updated)|Order (?:status changed|deleted)|Client .+|Coupon .+ (?:created|copied)|Category .+ (?:created|updated|deleted)|Admin (?:login successful|.* loaded successfully|access required)|Please sign in to access the admin panel|Enter the client email first|Select a client first|A new order has arrived)/i.test(message);
+}
+
+function isLegacyClientNotification(item) {
+  const message = String(item.message || '');
+  return /^(?:Signed out successfully!?|Signed in successfully!?|Login successful!?|Account created successfully!?|Added to (?:cart|wishlist)!|Coupon applied!?|Display currency:|Failed to load homepage:)/i.test(message);
+}
+
+function migrateLegacyNotifications() {
+  const legacy = readNotificationList('nexus_notifications');
+  if (!legacy.length) return;
+
+  const clientNotifications = [];
+  const adminNotifications = readNotificationList('nexus_admin_notifications');
+  legacy.forEach((item) => {
+    if (item.scope === 'admin' || isLegacyAdminNotification(item) || (isAdminPage() && item.scope !== 'client') || (!item.scope && !isLegacyClientNotification(item))) {
+      adminNotifications.push({ ...item, scope: 'admin' });
+    } else {
+      clientNotifications.push({ ...item, scope: 'client' });
+    }
+  });
+
+  localStorage.setItem('nexus_admin_notifications', JSON.stringify(adminNotifications.slice(0, 20)));
+  if (clientNotifications.length) {
+    localStorage.setItem('nexus_notifications', JSON.stringify(clientNotifications.slice(0, 20)));
+  } else {
+    localStorage.removeItem('nexus_notifications');
+  }
+}
+
+function getNotifications() {
+  migrateLegacyNotifications();
+  return readNotificationList(notificationStorageKey());
 }
 
 function addNotification(message, type = 'success') {
@@ -51,10 +97,12 @@ function addNotification(message, type = 'success') {
     message,
     type,
     read: false,
+    scope: isAdminPage() ? 'admin' : 'client',
     createdAt: new Date().toISOString(),
   });
-  localStorage.setItem('nexus_notifications', JSON.stringify(notifications.slice(0, 20)));
+  localStorage.setItem(notificationStorageKey(), JSON.stringify(notifications.slice(0, 20)));
   updateNotificationBadge();
+  updateNotificationList();
 }
 
 function updateNotificationBadge() {
@@ -70,18 +118,17 @@ function toggleNotificationPanel() {
   if (!panel) return;
   panel.hidden = !panel.hidden;
   if (!panel.hidden) {
-    getNotifications().forEach((item) => { item.read = true; });
     const notifications = getNotifications().map((item) => ({ ...item, read: true }));
-    localStorage.setItem('nexus_notifications', JSON.stringify(notifications));
+    localStorage.setItem(notificationStorageKey(), JSON.stringify(notifications));
     updateNotificationBadge();
+    updateNotificationList();
   }
 }
 
 function clearNotifications() {
-  localStorage.removeItem('nexus_notifications');
-  const panel = document.querySelector('.notification-list');
-  if (panel) panel.innerHTML = '<p class="notification-empty">No notifications</p>';
+  localStorage.removeItem(notificationStorageKey());
   updateNotificationBadge();
+  updateNotificationList();
 }
 
 function escapeHTML(value) {
@@ -94,24 +141,44 @@ function escapeHTML(value) {
 }
 
 function notificationPanelHTML() {
-  const items = getNotifications();
   return `
     <div class="notification-panel" hidden>
       <div class="notification-head">
         <strong>Notifications</strong>
         <button type="button" onclick="clearNotifications()">Clear</button>
       </div>
-      <div class="notification-list">
-        ${items.length ? items.map((item) => `
-          <div class="notification-item ${item.type}">
-            <span>${item.type === 'error' ? '!' : '✓'}</span>
-            <div>
-              <p>${escapeHTML(item.message)}</p>
-              <time>${new Date(item.createdAt).toLocaleString()}</time>
-            </div>
-          </div>`).join('') : '<p class="notification-empty">No notifications</p>'}
-      </div>
+      <div class="notification-list">${notificationItemsHTML()}</div>
     </div>`;
+}
+
+function notificationItemsHTML() {
+  const items = getNotifications();
+  return items.length ? items.map((item) => `
+    <div class="notification-item ${item.type}">
+      <span>${item.type === 'error' ? '!' : '✓'}</span>
+      <div>
+        <p>${escapeHTML(item.message)}</p>
+        <time>${new Date(item.createdAt).toLocaleString()}</time>
+      </div>
+    </div>`).join('') : '<p class="notification-empty">No notifications</p>';
+}
+
+function updateNotificationList() {
+  const list = document.querySelector('.notification-list');
+  if (list) list.innerHTML = notificationItemsHTML();
+}
+
+function setupAdminNotificationPanel() {
+  if (!isAdminPage() || document.querySelector('.admin-notification-wrap')) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'notification-wrap admin-notification-wrap';
+  wrap.innerHTML = `
+    <button class="icon-btn" type="button" title="Admin notifications" onclick="toggleNotificationPanel()" aria-label="Admin notifications">
+      🔔<span class="badge notification-count" style="display:none">0</span>
+    </button>
+    ${notificationPanelHTML()}`;
+  document.body.appendChild(wrap);
+  updateNotificationBadge();
 }
 
 function formatMoney(n) {
@@ -437,6 +504,7 @@ function setupAdminOrderSound() {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderHeader();
+  setupAdminNotificationPanel();
   setupAdminOrderSound();
   setupMiniAdminChat();
 
