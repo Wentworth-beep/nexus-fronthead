@@ -1,7 +1,10 @@
 window.API = {
   async request(path, { method = 'GET', body, headers = {} } = {}) {
     const isFormData = body instanceof FormData;
-    const baseUrl = (window.NEXUS_API_URL || 'https://nexus-backend-qaj2.onrender.com').replace(/\/$/, '');
+    const localApiUrl = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+      ? 'http://localhost:5000'
+      : '';
+    const baseUrl = (window.NEXUS_API_URL || localApiUrl).replace(/\/$/, '');
     const url = /^https?:\/\//i.test(path) ? path : `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
     const res = await fetch(url, {
       method,
